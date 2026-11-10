@@ -1,0 +1,46 @@
+name: build.yml
+
+on:
+  workflow_dispatch: # Esto te permite ejecutarlo manualmente con un botón
+
+jobs:
+  build:
+    runs-on: windows-latest # Usa una máquina virtual con Windows
+
+    steps:
+    - name: Checkout del código
+      uses: actions/checkout@v4
+
+    - name: Instalar MASM32
+      run: |
+        # Descarga un SDK de MASM32 ya extraído para evitar instaladores gráficos
+        Invoke-WebRequest -Uri "https://github.com/tonado/MASM32-SDK/archive/refs/heads/master.zip" -OutFile "masm32.zip"
+        Expand-Archive -Path "masm32.zip" -DestinationPath "C:\"
+        if (Test-Path "C:\MASM32-SDK-master") {
+            Rename-Item -Path "C:\MASM32-SDK-master" -NewName "masm32"
+        }
+        echo "C:\masm32\bin" >> $env:GITHUB_PATH
+
+    - name: Instalar Crinkler
+      run: |
+        New-Item -ItemType Directory -Force -Path "C:\tools"
+        Invoke-WebRequest -Uri "https://github.com/runestubbe/Crinkler/releases/download/v2.3/crinkler.exe" -OutFile "C:\tools\crinkler.exe"
+        echo "C:\tools" >> $env:GITHUB_PATH
+
+    - name: Adaptar build.bat a la ruta del SDK del runner
+      run: |
+        # Detecta automáticamente la versión del SDK de Windows en la máquina de GitHub
+        $sdkPath = Get-ChildItem -Path "C:\Program Files (x86)\Windows Kits\10\Lib" -Directory | Select-Object -Last 1
+        $libPath = Join-Path $sdkPath.FullName "um\x86"
+        Write-Host "Usando SDK en: $libPath"
+        # Reemplaza la ruta de LIBPATH en build.bat para que coincida
+        (Get-Content build.bat) -replace '/LIBPATH:.*', "/LIBPATH:`"$libPath`"" | Set-Content build.bat
+
+    - name: Compilar con build.bat
+      run: .\build.bat
+
+    - name: Subir el ejecutable como artefacto
+      uses: actions/upload-artifact@v4
+      with:
+        name: TinyRetroPad-exe
+        path: trpad.exe # El nombre del archivo final
