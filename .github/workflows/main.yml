@@ -23,8 +23,20 @@ jobs:
 
     - name: Instalar Crinkler
       run: |
-        New-Item -ItemType Directory -Force -Path "C:\tools"
-        Invoke-WebRequest -Uri "https://github.com/runestubbe/Crinkler/releases/download/v2.3/crinkler.exe" -OutFile "C:\tools\crinkler.exe"
+        # 1. Crear la carpeta de herramientas
+        New-Item -ItemType Directory -Force -Path "C:\tools" | Out-Null
+        
+        # 2. Descargar el ZIP correcto desde el release v2.3
+        $zipUrl = "https://github.com/runestubbe/Crinkler/releases/download/v2.3/crinkler23.zip"
+        Invoke-WebRequest -Uri $zipUrl -OutFile "C:\tools\crinkler23.zip"
+        
+        # 3. Extraer el contenido del ZIP en la misma carpeta
+        Expand-Archive -Path "C:\tools\crinkler23.zip" -DestinationPath "C:\tools" -Force
+        
+        # 4. Mostrar qué archivos se extrajeron (para depuración, opcional)
+        Get-ChildItem -Path "C:\tools" -Recurse
+        
+        # 5. Añadir C:\tools al PATH para que 'crinkler.exe' sea accesible
         echo "C:\tools" >> $env:GITHUB_PATH
 
     - name: Adaptar build.bat a la ruta del SDK del runner
