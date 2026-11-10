@@ -48,11 +48,15 @@ jobs:
         # Reemplaza la ruta de LIBPATH en build.bat para que coincida
         (Get-Content build.bat) -replace '/LIBPATH:.*', "/LIBPATH:`"$libPath`"" | Set-Content build.bat
 
-    - name: Compilar con build.bat
-      run: .\build.bat
-
-    - name: Subir el ejecutable como artefacto
-      uses: actions/upload-artifact@v4
-      with:
-        name: TinyRetroPad-exe
-        path: trpad.exe # El nombre del archivo final
+    - name: Compilar sin Crinkler (Bajo consumo de RAM)
+      run: |
+        # 1. Ensamblar el archivo .asm a un archivo objeto (.obj)
+        C:\masm32\bin\ml.exe /nologo /c /coff /Cp /IC:\masm32\include trpad.asm
+        
+        # 2. Enlazar el archivo objeto para crear el .exe usando el enlazador de Windows
+        # La ruta LIBPATH se detecta automáticamente del paso anterior
+        $libPath = "C:\Program Files (x86)\Windows Kits\10\Lib\10.0.26100.0\um\x86" 
+        C:\masm32\bin\link.exe trpad.obj /NOLOGO /OUT:trpad.exe /SUBSYSTEM:WINDOWS /LIBPATH:"$libPath" kernel32.lib user32.lib shell32.lib comdlg32.lib gdi32.lib
+        
+        # 3. Limpiar el archivo temporal
+        del trpad.obj
