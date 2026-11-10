@@ -23,18 +23,16 @@ jobs:
         powershell Expand-Archive crinkler.zip -DestinationPath crinkler
       shell: cmd
 
-    - name: Setup MSBuild
-      uses: microsoft/setup-msbuild@v2
-
     - name: Set up AMD64 Visual Studio toolchain
       uses: ilammy/msvc-dev-cmd@v1
       with:
         arch: amd64
 
-    - name: Run Build
+    - name: Run Build Direct
       run: |
         copy crinkler\win64\crinkler.exe .
-        .\build.bat
+        nasm -f win64 trpad.asm -o trpad.obj
+        crinkler /SUBSYSTEM:WINDOWS /ENTRY:EntryPoint user32.lib gdi32.lib comctl32.lib comdlg32.lib kernel32.lib trpad.obj /OUT:trpad.exe
       shell: cmd
 
     - name: Upload Artifact
