@@ -29,9 +29,6 @@ jobs:
     - name: Setup MSBuild
       uses: microsoft/setup-msbuild@v2
 
-    - name: Add MSBuild to PATH
-      uses: microsoft/setup-msbuild@v2
-
     - name: Set up AMD64 Visual Studio toolchain
       uses: ilammy/msvc-dev-cmd@v1
       with:
