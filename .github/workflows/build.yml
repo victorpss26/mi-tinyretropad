@@ -19,12 +19,9 @@ jobs:
 
     - name: Fetch Crinkler
       run: |
-        import urllib.request
-        import zipfile
-        urllib.request.urlretrieve("https://github.com", "crinkler.zip")
-        with zipfile.ZipFile("crinkler.zip", 'r') as zip_ref:
-            zip_ref.extractall("crinkler")
-      shell: python
+        curl -L -o crinkler.zip "https://github.com"
+        powershell Expand-Archive crinkler.zip -DestinationPath crinkler
+      shell: cmd
 
     - name: Setup MSBuild
       uses: microsoft/setup-msbuild@v2
