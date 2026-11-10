@@ -1,20 +1,18 @@
-name: build.yml
+name: Build TinyRetroPad
 
 on:
-  workflow_dispatch: # Esto te permite ejecutarlo manualmente con un botón
+  workflow_dispatch:
 
 jobs:
   build:
-    runs-on: windows-latest # Usa una máquina virtual con Windows
+    runs-on: windows-latest
 
     steps:
     - name: Checkout del código
-      uses: actions/checkout@v5
-
+      uses: actions/checkout@v4
 
     - name: Instalar MASM32
       run: |
-        # Descarga un SDK de MASM32 ya extraído para evitar instaladores gráficos
         Invoke-WebRequest -Uri "https://github.com/tonado/MASM32-SDK/archive/refs/heads/master.zip" -OutFile "masm32.zip"
         Expand-Archive -Path "masm32.zip" -DestinationPath "C:\"
         if (Test-Path "C:\MASM32-SDK-master") {
@@ -22,44 +20,26 @@ jobs:
         }
         echo "C:\masm32\bin" >> $env:GITHUB_PATH
 
-    - name: Instalar Crinkler
-      run: |
-        # 1. Crear la carpeta de herramientas
-        New-Item -ItemType Directory -Force -Path "C:\tools" | Out-Null
-        
-        # 2. Descargar el ZIP correcto desde el release v2.3
-        $zipUrl = "https://github.com/runestubbe/Crinkler/releases/download/v2.3/crinkler23.zip"
-        Invoke-WebRequest -Uri $zipUrl -OutFile "C:\tools\crinkler23.zip"
-        
-        # 3. Extraer el contenido del ZIP en la misma carpeta
-        Expand-Archive -Path "C:\tools\crinkler23.zip" -DestinationPath "C:\tools" -Force
-        
-        # 4. Mostrar qué archivos se extrajeron (para depuración, opcional)
-        Get-ChildItem -Path "C:\tools" -Recurse
-        
-        # 5. Añadir C:\tools al PATH para que 'crinkler.exe' sea accesible
-        echo "C:\tools" >> $env:GITHUB_PATH
-
-    - name: Adaptar build.bat a la ruta del SDK del runner
-      run: |
-        # Detecta automáticamente la versión del SDK de Windows en la máquina de GitHub
-        $sdkPath = Get-ChildItem -Path "C:\Program Files (x86)\Windows Kits\10\Lib" -Directory | Select-Object -Last 1
-        $libPath = Join-Path $sdkPath.FullName "um\x86"
-        Write-Host "Usando SDK en: $libPath"
-        # Reemplaza la ruta de LIBPATH en build.bat para que coincida
-        (Get-Content build.bat) -replace '/LIBPATH:.*', "/LIBPATH:`"$libPath`"" | Set-Content build.bat
-
     - name: Compilar sin Crinkler (Bajo consumo de RAM)
       run: |
-        # 1. Ensamblar el archivo .asm a un archivo objeto (.obj)
+        # 1. Ensamblar el archivo .asm
         C:\masm32\bin\ml.exe /nologo /c /coff /Cp /IC:\masm32\include trpad.asm
         
-        # 2. Enlazar el archivo objeto para crear el .exe usando el enlazador de Windows
-        # La ruta LIBPATH se detecta automáticamente del paso anterior
-        $libPath = "C:\Program Files (x86)\Windows Kits\10\Lib\10.0.26100.0\um\x86" 
+        # 2. Buscar automáticamente la versión del SDK de Windows que tenga GitHub
+        $sdkVersion = Get-ChildItem "C:\Program Files (x86)\Windows Kits\10\Lib" | Sort-Object Name -Descending | Select-Object -First 1
+        $libPath = "C:\Program Files (x86)\Windows Kits\10\Lib\$($sdkVersion.Name)\um\x86"
+        Write-Host "Usando SDK en: $libPath"
+        
+        # 3. Enlazar (crear el .exe)
         C:\masm32\bin\link.exe trpad.obj /NOLOGO /OUT:trpad.exe /SUBSYSTEM:WINDOWS /LIBPATH:"$libPath" kernel32.lib user32.lib shell32.lib comdlg32.lib gdi32.lib
         
-        # 3. Limpiar el archivo temporal
+        # 4. Comprobar si el archivo se creó con éxito (Si no, pone la acción en rojo)
+        if (-not (Test-Path trpad.exe)) {
+            Write-Error "¡Error! trpad.exe no se generó."
+            exit 1
+        }
+        
+        # 5. Limpiar
         del trpad.obj
 
     - name: Subir el ejecutable como artefacto
@@ -67,3 +47,4 @@ jobs:
       with:
         name: TinyRetroPad-exe
         path: trpad.exe
+        if-no-files-found: error # Si no encuentra el .exe, avisa en rojo
