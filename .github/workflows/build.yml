@@ -1,0 +1,50 @@
+name: Build trpad.exe
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Fetch Crinkler
+      run: |
+        import urllib.request
+        import zipfile
+        urllib.request.urlretrieve("https://github.com", "crinkler.zip")
+        with zipfile.ZipFile("crinkler.zip", 'r') as zip_ref:
+            zip_ref.extractall("crinkler")
+      shell: python
+
+    - name: Setup MSBuild
+      uses: microsoft/setup-msbuild@v2
+
+    - name: Add MSBuild to PATH
+      uses: microsoft/setup-msbuild@v2
+
+    - name: Set up AMD64 Visual Studio toolchain
+      uses: ilammy/msvc-dev-cmd@v1
+      with:
+        arch: amd64
+
+    - name: Run Build
+      run: |
+        copy crinkler\win64\crinkler.exe .
+        .\build.bat
+      shell: cmd
+
+    - name: Upload Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: trpad-exe
+        path: trpad.exe
